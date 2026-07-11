@@ -1,43 +1,43 @@
 """
-ماژول تشخیص جوین دسته‌جمعی مشکوک (Flood Join Detector).
+Flood Join Detector.
 
-وقتی چند عضو جدید توی یه بازه‌ی زمانی کوتاه با هم به گروه اضافه بشن،
-معمولاً نشونه‌ی حمله‌ی اسپم/بات‌های تبلیغاتیه. این ماژول دو کار می‌کنه:
+When several new members join a group in a short period of time,
 
-1. زمان جوین هر عضو جدید رو (به تفکیک گروه) ثبت می‌کنه و اگه تعداد
-   جوین‌ها توی یه بازه از حد مجاز رد بشه، هشدار می‌ده.
-2. زمان جوین هر کاربر رو جدا نگه می‌داره تا اگه بلافاصله بعد از
-   جوین‌شدن پیام مشکوکی فرستاد، امتیاز اضافه‌تری بگیره.
-"""
+it is usually a sign of a spam/advertising bot attack. This module does two things:
+
+1. It records the join time of each new member (group by group) and warns if the number of joins in a period exceeds the allowed limit.
+
+2. It keeps the join time of each user separate so that if they send a suspicious message immediately after
+joining, they get extra points."""
 
 from collections import defaultdict, deque
 from time import time
 
 # ---------------------------------------------------------------------------
-# تنظیمات قابل ویرایش
+# Editable settings
 # ---------------------------------------------------------------------------
 
-FLOOD_JOIN_COUNT = 4  # این تعداد جوین...
-FLOOD_JOIN_WINDOW_SECONDS = 60  # ...توی این بازه (ثانیه) => مشکوک
+FLOOD_JOIN_COUNT = 4  # This number is...
+FLOOD_JOIN_WINDOW_SECONDS = 60  # ...within this interval (seconds) => Suspicious
 
-NEW_USER_GRACE_SECONDS = 300  # ۵ دقیقه‌ی اول بعد از جوین، کاربر "تازه‌وارد" حساب می‌شه
-NEW_USER_BONUS_SCORE = 20  # اگه تازه‌وارد پیام از قبل مشکوکی بفرسته، این امتیاز اضافه می‌شه
+NEW_USER_GRACE_SECONDS = 300  # The first 5 minutes after joining, the user is considered a "newcomer".
+NEW_USER_BONUS_SCORE = 20  # This point is added if the newcomer sends a previously suspicious message.
 
 # ---------------------------------------------------------------------------
 
-# جوین‌های اخیر هر گروه: {chat_id: deque[timestamp, ...]}
+# Group's last joins: {chat_id: deque[timestamp, ...]}
 _chat_joins: dict[int, deque] = defaultdict(lambda: deque(maxlen=FLOOD_JOIN_COUNT * 3))
 
-# زمان جوین هر کاربر: {user_id: timestamp}
+# User's join time: {user_id: timestamp}
 _user_join_time: dict[int, float] = {}
 
 
 def record_join(chat_id: int, user_id: int) -> dict:
     """
-    وقتی یه عضو جدید وارد گروه می‌شه صدا زده می‌شه.
+Called when a new member joins the group.
 
-    خروجی:
-        {"is_flood": bool, "recent_join_count": int}
+Output:
+{"is_flood": bool, "recent_join_count": int}
     """
     now = time()
     _user_join_time[user_id] = now
@@ -56,10 +56,10 @@ def record_join(chat_id: int, user_id: int) -> dict:
 
 
 def get_new_user_bonus(user_id: int) -> int:
-    """اگه کاربر هنوز توی بازه‌ی «تازه‌وارد»‌ باشه، امتیاز بونوس رو برمی‌گردونه، وگرنه صفر."""
+    """If the user is still in the "newcomer" range, it returns the bonus points, otherwise zero."""
     join_time = _user_join_time.get(user_id)
     if join_time is None:
-        return 0  # زمان جوینش رو ندیدیم (مثلاً قبل از استارت ربات عضو شده)
+        return 0  # We did not see the time of his joining (for example, he joined before the robot started)
 
     if time() - join_time <= NEW_USER_GRACE_SECONDS:
         return NEW_USER_BONUS_SCORE

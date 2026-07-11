@@ -1,19 +1,19 @@
 """
-ماژول تشخیص اسپم مبتنی بر قانون (Rule-Based).
+Rule-Based Spam Detection Module.
 
-این نسخه سه تا سیگنال رو چک می‌کنه:
-1. وجود کلمات/عبارات ممنوعه (تبلیغاتی، اسپم رایج)
-2. وجود لینک (http, www, t.me, @username تبلیغاتی)
-3. نسبت حروف بزرگ بیش‌ازحد (فریاد زدن / جلب توجه)
+This version checks for three signals:
+1. Presence of banned words/phrases (promotional, common spam)
+2. Presence of links (http, www, t.me, @username promotional)
+3. Excessive capitalization (shouting/attention-grabbing)
 
-در روزهای بعد، این تابع‌ها به یه سیستم امتیازدهی (به‌جای تصمیم قطعی)
-و ذخیره‌سازی در دیتابیس تبدیل می‌شن.
+In the coming days, these functions will be transformed into a scoring system (instead of a definitive decision)
+and stored in the database.
 """
 
 import re
 
 # ---------------------------------------------------------------------------
-# تنظیمات قابل ویرایش - این‌ها رو با توجه به نیاز گروه خودت تغییر بده
+# Editable settings - change these to suit your group's needs
 # ---------------------------------------------------------------------------
 
 BANNED_WORDS = [
@@ -30,35 +30,35 @@ BANNED_WORDS = [
     "guaranteed profit",
 ]
 
-CAPS_RATIO_THRESHOLD = 0.6  # اگه ۶۰٪ یا بیشتر حروف پیام بزرگ بود، مشکوکه
-MIN_LENGTH_FOR_CAPS_CHECK = 10  # پیام‌های کوتاه (مثل "OK") رو چک نکن
+CAPS_RATIO_THRESHOLD = 0.6  # If 60% or more of the message is uppercase, it's suspicious.
+MIN_LENGTH_FOR_CAPS_CHECK = 10  # Don't check short messages (like "OK").
 
-# لینک: http/https, www., t.me/xxx, telegram.me/xxx
+# Link: http/https, www., t.me/xxx, telegram.me/xxx
 URL_PATTERN = re.compile(
     r"(https?://\S+)|(www\.\S+)|(t\.me/\S+)|(telegram\.me/\S+)",
     re.IGNORECASE,
 )
 
 # ---------------------------------------------------------------------------
-# سیستم امتیازدهی
-# هر قانون یه وزن داره؛ مجموع امتیازها تعیین می‌کنه چه اتفاقی بیفته.
-# این اعداد رو با توجه به تجربه‌ی واقعی گروهت می‌تونی تنظیم کنی.
+# Scoring System
+# Each rule has a weight; the total points determine what happens.
+# You can adjust these numbers based on your group's actual experience.
 # ---------------------------------------------------------------------------
 
 RULE_WEIGHTS = {
-    "banned_word": 60,  # به‌تنهایی از حد حذف رد می‌شه
-    "link": 40,  # به‌تنهایی فقط هشدار می‌ده، حذف نمی‌شه
+    "banned_word": 60,  # It just goes beyond deletion.
+    "link": 40,  # It only warns you, it cannot be deleted.
     "excessive_caps": 30,
 }
 
-SPAM_DELETE_THRESHOLD = 50  # امتیاز مساوی یا بیشتر از این => حذف پیام
-SPAM_WARN_THRESHOLD = 25  # امتیاز بین این و آستانه‌ی حذف => فقط لاگ هشدار
+SPAM_DELETE_THRESHOLD = 50  # Score equal to or greater than this => Delete message
+SPAM_WARN_THRESHOLD = 25  # Score between this and the deletion threshold => Warning log only
 
 # ---------------------------------------------------------------------------
 
 
 def contains_banned_word(text: str) -> str | None:
-    """اگه متن شامل یکی از کلمات ممنوعه بود، همون کلمه رو برمی‌گردونه، وگرنه None."""
+    """If the text contains one of the prohibited words, it returns that word, otherwise None."""
     lowered = text.lower()
     for word in BANNED_WORDS:
         if word.lower() in lowered:
@@ -67,12 +67,12 @@ def contains_banned_word(text: str) -> str | None:
 
 
 def contains_link(text: str) -> bool:
-    """آیا متن شامل لینک هست؟"""
+    """Does the text contain links?"""
     return bool(URL_PATTERN.search(text))
 
 
 def has_excessive_caps(text: str) -> bool:
-    """آیا نسبت حروف بزرگ به کل حروف بیش از حد مجازه؟"""
+    """Is the ratio of capital letters to total letters too high?"""
     letters = [c for c in text if c.isalpha()]
     if len(letters) < MIN_LENGTH_FOR_CAPS_CHECK:
         return False
@@ -83,14 +83,14 @@ def has_excessive_caps(text: str) -> bool:
 
 def analyze_message(text: str) -> dict:
     """
-    متن پیام رو تحلیل و امتیازدهی می‌کنه.
+Analyzes and scores the message text.
 
-    خروجی:
-        {
-            "score": int,           # مجموع امتیاز مشکوک‌بودن
-            "reasons": [str, ...],  # دلایل به‌همراه امتیاز هرکدوم
-            "is_spam": bool,        # آیا از آستانه‌ی حذف رد شده؟
-        }
+Output:
+    {
+        "score": int, # Total suspiciousness score
+        "reasons": [str, ...], # Reasons with score for each
+        "is_spam": bool, # Did it pass the deletion threshold?
+    }
     """
     score = 0
     reasons = []

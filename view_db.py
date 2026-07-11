@@ -86,23 +86,23 @@ def show_report():
 
 
 def _style_workbook(path: Path):
-    """یه استایل ساده و حرفه‌ای (فونت، هدر بولد، عرض ستون مناسب) به فایل اضافه می‌کنه."""
+    """Adds a simple and professional style (font, bold header, appropriate column width) to the file."""
     from openpyxl import load_workbook
     from openpyxl.styles import Font
 
     wb = load_workbook(path)
 
     for sheet in wb.worksheets:
-        # هدر: بولد
+        # Header: Bold
         for cell in sheet[1]:
             cell.font = Font(name="Arial", bold=True)
 
-        # بقیه‌ی سلول‌ها: فونت معمولی
+        # Rest of cells: Normal font
         for row in sheet.iter_rows(min_row=2):
             for cell in row:
                 cell.font = Font(name="Arial")
 
-        # عرض ستون‌ها متناسب با محتوا
+        # Column widths proportional to content
         for column_cells in sheet.columns:
             length = max(
                 (len(str(cell.value)) if cell.value is not None else 0)

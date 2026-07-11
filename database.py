@@ -1,13 +1,13 @@
 """
-لایه‌ی دیتابیس ربات - از SQLite استفاده می‌کنه (فایلی، بدون نیاز به سرور جدا).
+Bot database layer - uses SQLite (file, no need for a separate server).
 
-جدول‌ها:
-- users: اطلاعات پایه‌ی هر کاربر (تعداد پیام، تعداد اسپم، وضعیت سفیدلیست)
-- flagged_messages: آرشیو پیام‌هایی که مشکوک/اسپم تشخیص داده شدن (برای بازبینی بعدی)
+Tables:
+- users: basic information about each user (number of messages, number of spam, whitelist status)
+- flagged_messages: archive of messages that were detected as suspicious/spam (for later review)
 
-نکته: برای سادگی، هر تابع یه اتصال جدید باز و بسته می‌کنه.
-برای یه ربات با ترافیک خیلی بالا بهتره از connection pool استفاده بشه،
-ولی برای این پروژه (چند گروه، ترافیک معمولی) این روش کاملاً کافیه.
+Note: for simplicity, each function opens and closes a new connection.
+For a bot with very high traffic, it is better to use a connection pool,
+but for this project (few groups, normal traffic) this method is quite sufficient.
 """
 
 import sqlite3
@@ -24,7 +24,7 @@ def get_connection() -> sqlite3.Connection:
 
 
 def init_db():
-    """جدول‌ها رو اگه وجود نداشته باشن می‌سازه. باید یه‌بار موقع استارت ربات صدا زده بشه."""
+    """Creates the tables if they do not exist. It must be called once when the robot starts."""
     conn = get_connection()
     cur = conn.cursor()
 
@@ -62,7 +62,7 @@ def init_db():
 
 
 def touch_user(user_id: int, first_name: str):
-    """اگه کاربر تازه‌ست ثبتش می‌کنه، وگرنه شمارنده‌ی پیامش رو یکی زیاد می‌کنه."""
+    """If the user is new, it registers them, otherwise it increases their message counter by one."""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
@@ -116,7 +116,7 @@ def increment_spam_count(user_id: int):
 
 
 def get_user_stats(user_id: int) -> dict | None:
-    """اطلاعات ثبت‌شده‌ی یه کاربر رو برمی‌گردونه، یا None اگه پیدا نشد."""
+    """Returns the registered information of a user, or None if not found."""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
@@ -134,7 +134,7 @@ def log_flagged_message(
     reasons: list[str],
     action: str,
 ):
-    """یه پیام مشکوک/اسپم رو توی آرشیو ذخیره می‌کنه (برای بازبینی بعدی توسط ادمین)."""
+    """Saves a suspicious/spam message to the archive (for later review by the admin)."""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(

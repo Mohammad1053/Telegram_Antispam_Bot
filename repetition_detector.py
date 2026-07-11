@@ -1,10 +1,11 @@
 """
-ماژول تشخیص پیام تکراری (Flood / Repeated Message Detector).
+Flood / Repeated Message Detector module.
 
-برخلاف spam_detector.py که فقط به متن *یه* پیام نگاه می‌کنه، این ماژول
-تاریخچه‌ی چند پیام آخر هر کاربر رو (فقط توی حافظه، نه دیتابیس - چون فقط
-برای مقایسه‌ی کوتاه‌مدت لازمه) نگه می‌داره و اگه کاربر پشت‌سرهم پیام
-یکسان یا خیلی شبیه به‌هم بفرسته (کپی‌پیست تبلیغاتی رایج)، تشخیصش می‌ده.
+Unlike spam_detector.py which only looks at the text of *one*
+message, this module keeps a history of each user's last few
+messages (only in memory, not in the database - as this is only
+needed for short-term comparison) and detects if a user sends the
+same or very similar messages in a row (common advertising copy-paste).
 """
 
 from collections import defaultdict, deque
@@ -12,23 +13,23 @@ from difflib import SequenceMatcher
 from time import time
 
 # ---------------------------------------------------------------------------
-# تنظیمات قابل ویرایش
+# Editable settings
 # ---------------------------------------------------------------------------
 
-HISTORY_SIZE = 5  # چند تا پیام آخر هر کاربر رو نگه داریم
-TIME_WINDOW_SECONDS = 60  # پیام‌های قدیمی‌تر از این چند ثانیه، دیگه حساب نمی‌شن
-SIMILARITY_THRESHOLD = 0.9  # شباهت بالاتر از این یعنی "همون پیام" (۰ تا ۱)
-REPEAT_COUNT_THRESHOLD = 3  # این تعداد تکرار مشابه => اسپم محسوب می‌شه
-RULE_WEIGHT = 70  # امتیازی که این قانون به مجموع امتیاز اضافه می‌کنه
+HISTORY_SIZE = 5  # How many last messages should we keep for each user?
+TIME_WINDOW_SECONDS = 60  # Messages older than these few seconds will no longer count.
+SIMILARITY_THRESHOLD = 0.9  # Similarity higher than this means "same message" (0 to 1)
+REPEAT_COUNT_THRESHOLD = 3  # This number of repetitions is similar => considered spam.
+RULE_WEIGHT = 70  # The point that this rule adds to the total points
 
 # ---------------------------------------------------------------------------
 
-# تاریخچه‌ی هر کاربر: {user_id: deque[(timestamp, normalized_text), ...]}
+# User history: {user_id: deque[(timestamp, normalized_text), ...]}
 _user_history: dict[int, deque] = defaultdict(lambda: deque(maxlen=HISTORY_SIZE))
 
 
 def _normalize(text: str) -> str:
-    """فاصله‌های اضافه و بزرگ/کوچیکی حروف رو نادیده می‌گیره تا مقایسه دقیق‌تر بشه."""
+    """Ignores extra spaces and upper/lower case letters to make the comparison more accurate."""
     return " ".join(text.strip().lower().split())
 
 
@@ -40,20 +41,20 @@ def _is_similar(a: str, b: str) -> bool:
 
 def check_repetition(user_id: int, text: str) -> dict:
     """
-    پیام جدید یه کاربر رو با تاریخچه‌ی پیام‌های اخیرش مقایسه می‌کنه.
+    Compares a user's new message with their recent message history.
 
-    خروجی:
-        {
-            "is_repeated": bool,   # آیا از حد تکرار مجاز رد شده؟
-            "repeat_count": int,   # این پیام چندمین‌بار مشابه (شامل خودش)؟
-            "score": int,          # امتیازی که باید به مجموع اضافه بشه
-        }
+Output:
+    {
+        "is_repeated": bool, # Is the repetition limit exceeded?
+        "repeat_count": int, # How many times is this message the same (including itself)?
+        "score": int, # The score to add to the total
+    }
     """
     now = time()
     normalized = _normalize(text)
     history = _user_history[user_id]
 
-    # پیام‌های خارج از بازه‌ی زمانی رو دور بریز
+    # Discard messages outside of the time frame.
     while history and now - history[0][0] > TIME_WINDOW_SECONDS:
         history.popleft()
 
@@ -63,7 +64,7 @@ def check_repetition(user_id: int, text: str) -> dict:
 
     history.append((now, normalized))
 
-    repeat_count = similar_count + 1  # +۱ یعنی خودِ همین پیام
+    repeat_count = similar_count + 1  # +1 means the same message
     is_repeated = repeat_count >= REPEAT_COUNT_THRESHOLD
 
     return {

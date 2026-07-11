@@ -1,22 +1,23 @@
 """
-ماژول بررسی لینک با سرویس خارجی Google Safe Browsing API.
+Link checking module with external Google Safe Browsing API service.
 
-لینک‌های داخل یه پیام رو استخراج می‌کنه و از سرویس گوگل می‌پرسه که آیا
-این‌ها روی لیست سایت‌های مخرب/فیشینگ گوگل هستن یا نه.
+Extracts links inside a message and asks Google service whether
+they are on Google's list of malicious/phishing sites or not.
 
-نیاز به یه API Key رایگان از Google Cloud Console داره (رایگانه، توضیحش
-توی README پروژه هست). اگه API Key تنظیم نشده باشه، این ماژول فقط
-هیچ‌کاری نمی‌کنه (fail-open) - بقیه‌ی ربات بدون این قابلیت هم کار می‌کنه.
+Requires a free API Key from Google Cloud Console (free, explained in the project's README).
+If the API Key is not set, this module will just
+fail-open - the rest of the bot will work without this feature.
 
-نکته درباره‌ی نسخه‌ی API: از Lookup API نسخه‌ی v4 استفاده می‌کنیم. با
-اینکه گوگل این نسخه رو "منسوخ" (deprecated) اعلام کرده و در حال مهاجرت
-به نسخه‌ی v5 هست، v4 هنوز کاملاً فعال، پایدار و به‌خوبی مستندسازی‌شده‌ست.
-نسخه‌ی جایگزین (v5alpha1) هنوز آزمایشیه و در عمل رفتار غیرقابل‌اعتمادی
-از خودش نشون داد - برای همین فعلاً v4 انتخاب مطمئن‌تریه.
+Note about API version: We use Lookup API version v4. Although
+Google has declared this version "deprecated" and is migrating
+to version v5, v4 is still fully functional, stable and well documented.
 
-نکته‌ی دیگه: اگه خود سرویس گوگل در دسترس نبود یا خطا داد، به‌جای اینکه
-ربات رو متوقف کنیم، فقط نادیده می‌گیریم (fail-open) - چون این یه لایه‌ی
-اضافه‌ست، نه بخش اصلی تشخیص اسپم.
+The alternative version (v5alpha1) is still
+experimental and has shown unreliable behavior in practice - so for now, v4 is a safer choice.
+
+Another point: if the Google service itself is unavailable or gives an error,
+instead of stopping the bot, we just ignore it (fail-open) - because this is an additional layer,
+not the main part of spam detection.
 """
 
 import logging
@@ -33,7 +34,7 @@ URL_EXTRACT_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-RULE_WEIGHT = 100  # اگه گوگل تأیید کنه لینک مخربه، به‌تنهایی از آستانه‌ی حذف رد می‌شه
+RULE_WEIGHT = 100  # If Google confirms that the link is malicious, it will automatically pass the removal threshold.
 
 CLIENT_ID = "antispam-telegram-bot"
 CLIENT_VERSION = "1.0"
@@ -47,21 +48,21 @@ THREAT_TYPES = [
 
 
 def extract_urls(text: str) -> list[str]:
-    """لینک‌های داخل یه متن رو استخراج می‌کنه."""
+    """Extracts links within a text."""
     matches = URL_EXTRACT_PATTERN.findall(text)
     return [http_match or www_match for http_match, www_match in matches if http_match or www_match]
 
 
 async def check_urls(urls: list[str], api_key: str | None) -> dict:
     """
-    لیستی از لینک‌ها رو در یه درخواست به گوگل می‌ده و چک می‌کنه که آیا مخرب‌ان یا نه.
+   Gives a list of links in a request to Google and checks whether they are malicious or not.
 
-    خروجی:
-        {
-            "is_malicious": bool,
-            "matched_urls": [str, ...],  # لینک‌هایی که مخرب تشخیص داده شدن
-            "score": int,
-        }
+Output:
+    {
+        "is_malicious": bool,
+        "matched_urls": [str, ...], # links that were found to be malicious
+        "score": int,
+    }
     """
     if not api_key or not urls:
         return {"is_malicious": False, "matched_urls": [], "score": 0}
