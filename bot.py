@@ -1,3 +1,7 @@
+import os
+TOKEN = os.getenv("BOT_TOKEN")
+SAFE_BROWSING_API_KEY = os.getenv("SAFE_BROWSING_API_KEY")
+
 import logging
 import os
 from pathlib import Path
