@@ -1,6 +1,7 @@
 import os
 TOKEN = os.getenv("BOT_TOKEN")
 SAFE_BROWSING_API_KEY = os.getenv("SAFE_BROWSING_API_KEY")
+PROXY_URL = os.getenv("PROXY_URL")
 
 import logging
 import os
@@ -33,7 +34,6 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 # Put the proxy address in .env, e.g.:
 #   PROXY_URL=http://127.0.0.1:10809
 #   PROXY_URL=socks5://127.0.0.1:1080
-# PROXY_URL = os.getenv("PROXY_URL")
 
 # Optional: Google Safe Browsing API key to check for malicious links
 # If not set, this feature will just be ignored
