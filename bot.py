@@ -33,7 +33,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 # Put the proxy address in .env, e.g.:
 #   PROXY_URL=http://127.0.0.1:10809
 #   PROXY_URL=socks5://127.0.0.1:1080
-PROXY_URL = os.getenv("PROXY_URL")
+# PROXY_URL = os.getenv("PROXY_URL")
 
 # Optional: Google Safe Browsing API key to check for malicious links
 # If not set, this feature will just be ignored
@@ -313,7 +313,7 @@ def main():
 
     if PROXY_URL:
         logger.info(f"استفاده از پراکسی: {PROXY_URL}")
-        builder = builder.proxy(PROXY_URL).get_updates_proxy(PROXY_URL)
+        # builder = builder.proxy(PROXY_URL).get_updates_proxy(PROXY_URL)
 
     app = builder.build()
 
@@ -329,7 +329,8 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     logger.info("ربات در حال اجراست... (برای توقف Ctrl+C بزن)")
-    app.run_polling()
+    app.run_polling(drop_pending_updates=True, timeout=10, read_timeout=10)
+    # app.run_polling()
 
 
 if __name__ == "__main__":
