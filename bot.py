@@ -1,7 +1,7 @@
 import os
 TOKEN = os.getenv("BOT_TOKEN")
 SAFE_BROWSING_API_KEY = os.getenv("SAFE_BROWSING_API_KEY")
-
+PROXY_URL = os.getenv("PROXY_URL")
 
 import logging
 import os
@@ -311,9 +311,9 @@ def main():
 
     builder = Application.builder().token(BOT_TOKEN)
 
-#    if PROXY_URL:
-#       logger.info(f"استفاده از پراکسی: {PROXY_URL}")
-#      # builder = builder.proxy(PROXY_URL).get_updates_proxy(PROXY_URL)
+    if PROXY_URL:
+        logger.info(f"استفاده از پراکسی: {PROXY_URL}")
+        # builder = builder.proxy(PROXY_URL).get_updates_proxy(PROXY_URL)
 
     app = builder.build()
 
