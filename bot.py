@@ -1,7 +1,3 @@
-import os
-TOKEN = os.getenv("BOT_TOKEN")
-SAFE_BROWSING_API_KEY = os.getenv("SAFE_BROWSING_API_KEY")
-
 import logging
 import os
 from pathlib import Path
@@ -20,23 +16,24 @@ from telegram.ext import (
 import database
 import join_detector
 import link_checker
+from health_check import start_health_check_server
 from repetition_detector import check_repetition
 from spam_detector import SPAM_DELETE_THRESHOLD, SPAM_WARN_THRESHOLD, analyze_message
 
-# We find the path to the .env file right next to bot.py
-# (this way it doesn't matter where you run the script from)
+# مسیر فایل .env رو دقیقاً کنار خود bot.py پیدا می‌کنیم
+# (اینطوری فرقی نمی‌کنه از کجا اسکریپت رو اجرا کرده باشی)
 ENV_PATH = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-# Optional: If you don't have direct access to Telegram (e.g. you need a VPN/proxy)
-# Put the proxy address in .env, e.g.:
+# اختیاری: اگه به تلگرام دسترسی مستقیم نداری (مثلاً به VPN/پراکسی نیاز داری)
+# آدرس پراکسی رو توی .env بذار، مثلاً:
 #   PROXY_URL=http://127.0.0.1:10809
 #   PROXY_URL=socks5://127.0.0.1:1080
 PROXY_URL = os.getenv("PROXY_URL")
 
-# Optional: Google Safe Browsing API key to check for malicious links
-# If not set, this feature will just be ignored
+# اختیاری: کلید Google Safe Browsing API برای چک لینک‌های مخرب
+# اگه تنظیم نشه، این قابلیت فقط نادیده گرفته می‌شه
 SAFE_BROWSING_API_KEY = os.getenv("SAFE_BROWSING_API_KEY")
 
 logging.basicConfig(
@@ -73,7 +70,7 @@ async def _get_admin_ids(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> se
 
 
 async def _require_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    """If the sender of the command is not a group admin, an error message is given and False is returned."""
+    """اگه فرستنده‌ی دستور ادمین گروه نباشه، پیام خطا می‌ده و False برمی‌گردونه."""
     chat = update.effective_chat
     user = update.effective_user
     admin_ids = await _get_admin_ids(context, chat.id)
@@ -86,7 +83,7 @@ async def _require_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 def _get_target_user(update: Update):
-    """The user finds the target from the replied message. If there is no reply, None is returned."""
+    """کاربر هدف رو از روی پیام ریپلای‌شده پیدا می‌کنه. اگه ریپلای نبود None برمی‌گردونه."""
     message = update.effective_message
     if message.reply_to_message and message.reply_to_message.from_user:
         return message.reply_to_message.from_user
@@ -95,17 +92,17 @@ def _get_target_user(update: Update):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Each text message is analyzed by the group:
-    - Score >= deletion threshold: message is deleted, logged in the database
-    - Score between warning and deletion threshold: only logged (for review), not deleted
-    - Less than that: message is normal
+    هر پیام متنی گروه رو تحلیل می‌کنه:
+    - امتیاز >= آستانه‌ی حذف: پیام حذف می‌شه، در دیتابیس ثبت می‌شه
+    - امتیاز بین آستانه‌ی هشدار و حذف: فقط لاگ می‌شه (برای بازبینی)، حذف نمی‌شه
+    - کمتر از اون: پیام عادیه
     """
     message = update.effective_message
     user = update.effective_user
     chat = update.effective_chat
 
     if not message.text:
-        return  # We're just checking text messages for now.
+        return  # فعلاً فقط پیام‌های متنی رو چک می‌کنیم
 
     database.touch_user(user.id, user.first_name)
 
@@ -135,8 +132,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f'(+{repetition["score"]})'
         )
 
-    # If the message was already a bit suspicious (its score is not zero) and the sender is a newcomer,
-    # This combination (Join + immediately suspicious message) gets extra points.
+    # اگه پیام از قبل یکم مشکوک بود (امتیازش صفر نیست) و فرستنده هم تازه‌وارده،
+    # این ترکیب (جوین + بلافاصله پیام مشکوک) امتیاز اضافه می‌گیره
     if score > 0:
         new_user_bonus = join_detector.get_new_user_bonus(user.id)
         if new_user_bonus:
@@ -180,8 +177,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    It is called when one or more new members are added to the group.
-    It records the time of each join and warns if the joins are collective and suspicious.
+    وقتی یک یا چند عضو جدید به گروه اضافه می‌شن صدا زده می‌شه.
+    زمان جوین هر کدوم رو ثبت می‌کنه و اگه جوین‌ها دسته‌جمعی و مشکوک بودن هشدار می‌ده.
     """
     chat = update.effective_chat
     message = update.effective_message
@@ -308,6 +305,9 @@ def main():
 
     database.init_db()
     logger.info("دیتابیس آماده شد.")
+
+    start_health_check_server()
+    logger.info("سرور health check راه‌اندازی شد.")
 
     builder = Application.builder().token(BOT_TOKEN)
 
